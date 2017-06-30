@@ -1,0 +1,147 @@
+
+Install maven 
+Download from https://maven.apache.org/download.cgi and untar 
+
+Move to a directory <MAVENHOME>
+
+Open bash profile 
+
+on MAC
+$ nano ~/.bash_profile
+on Linux 
+$ nano ~/.bashrc
+
+Add to bash_profile
+export PATH=$PATH:'<MAVENHOME>/bin'
+
+
+Download and untar Oozie 4.2.0 source code from the Oozie mirror and
+store the untarred folder in a convenient location
+http://www.apache.org/dyn/closer.lua/oozie/
+
+
+In Oozie home dir ie. oozie-4.2.0 edit pom.xml 
+
+1) change java version to 1.8
+2) add to configuration element for maven-javadoc-plugin
+
+<javadocExecutable><JAVADOC EXECUTABLE HOME></javadocExecutable>
+<additionalparam>-Xdoclint:none</additionalparam>
+
+3) Change hadoop.version and hadoop.majorversion
+hadoop.version = 2.7.2
+
+4) change profile-id hadoop-2 to true and hadoop-1 to false
+
+5)  update the repository below
+
+ <repository>
+            <id>Codehaus repository</id>
+            <url>https://repository-master.mulesoft.org/nexus/content/groups/public/</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+
+
+
+In oozie-4.2.0/hadooplibs
+in pom.xml change hadoop-2 to true 
+
+
+Back to Terminal 
+$ cd oozie-4.2.0/bin
+$ ./mkdistro.sh -DskipTests
+
+Find the distribution in 
+oozie-4.2.0/distro/target
+
+Untar the distribution and move it to a preferred location
+
+
+COPYING HADOOP JARS 
+ 1) Create folder libext under oozie home dir
+ 2) From hadooplibs directory find the jars and copy to libext 
+$ cp oozie-4.2.0/hadooplibs/hadoop-utils-2/target/oozie-hadoop-utils-hadoop-2-4.2.0.jar oozie/libext
+
+$ cp oozie-4.2.0/hadooplibs/hadoop-auth-2/target/oozie-hadoop-auth-hadoop-2-4.2.0.jar oozie/libext
+
+$ cp oozie-4.2.0/hadooplibs/hadoop-distcp-2/target/oozie-hadoop-distcp-hadoop-2-4.2.0.jar oozie/libext
+
+3) copy jars from below locations to oozie/libext
+$HADOOP_HOME/share/hadoop/common/*.jar
+$HADOOP_HOME/share/hadoop/common/lib/*.jar
+$HADOOP_HOME/share/hadoop/hdfs/*.jar
+$HADOOP_HOME/share/hadoop/mapreduce/*.jar
+$HADOOP_HOME/share/hadoop/yarn/*.jar
+
+
+CONFIGURING HADOOP AND OOZIE 
+
+Add to $HADOOP_HOME/etc/hadoop/core-site.xml 
+
+<!-- OOZIE -->
+  <property>
+    <name>hadoop.proxyuser.<USERNAME>.hosts</name>
+    <value>localhost</value>
+  </property>
+  <property>
+    <name>hadoop.proxyuser.<USERNAME>.groups</name>
+    <value>admin</value>
+  </property>
+
+Add to  oozie/conf/oozie-site.xml 
+ <property>        
+      <name>oozie.service.HadoopAccessorService.hadoop.configurations</name> 
+      <value>*=<HADOOP_HOME>/etc/hadoop/</value>
+    </property>
+
+OOZIE PREREQS
+
+Prepare war 
+$ cd oozie 
+$ bin/oozie-setup.sh prepare-war 
+
+oozie sharelib directory on hdfs 
+
+$ cd $HOME/oozie
+$ ./bin/oozie-setup.sh sharelib create -fs hdfs://localhost:9000 
+$ hadoop fs -chmod g+w /user/<USERNAME>/share/lib/lib_20160607151905
+
+Oozie metadata db
+$ ./bin/ooziedb.sh create -sqlfile oozie.sql -run
+
+COPY ALL JARS FROM oozie/libext to oozie/oozie-server/webapps/oozie/WEB-INF/lib/
+
+
+START OOZIE 
+./bin/oozied.sh start
+
+CHECK OOZIE SERVER STATUS 
+oozie admin -oozie http://localhost:11000/oozie -status
+
+STOP OOZIE 
+./bin/oozied.sh stop
+
+RUNNING A TEST WORKFLOW 
+edit the job properties file  
+
+oozie-4.2.0/examples/target/oozie-examples-4.2.0-examples/examples/apps/map-reduce/job.properties
+
+$ cd oozie-4.2.0/examples/target/oozie-examples-4.2.0-examples
+$ hadoop fs -put examples examples
+ 
+EDIT BASH PROFILE 
+export PATH="$HOME/oozie/bin:$PATH"
+
+
+RUN A WORKFLOW 
+oozie job -oozie http://localhost:11000/oozie -config /Users/swethakolalapudi/oozie-4.2.0/examples/target/oozie-examples-4.2.0-examples/examples/apps/map-reduce/job.properties -run
+
+CHECKING WORKFLOW STATUS 
+
+oozie job -oozie http://localhost:11000/oozie -info 0000000-160607195411255-oozie-swet-W
+
+
+
+
